@@ -1,6 +1,9 @@
 import random
 import copy
 
+from mpmath.matrices.matrices import rowsep
+
+
 class Game2048:
     def __init__(self):
         self.board = [[0]*4 for _ in range(4)]
@@ -94,21 +97,100 @@ class Game2048:
         print("\nScore:", self.score)
         print("\n")
         for row in self.board:
-            print("".join(f"{num or '.':>5}" for num in row))
+            print("".join(f"{num or '-':>5}" for num in row))
         print("\n")
+
+
+# EXPECTIMAX
+class Expectimax:
+    # helper functions
+    def is_max_tile_in_corner(self, board):
+        max_tile = max(max(row) for row in board)
+        corners = [board[0][0], board[0][3], board[3][0], board[3][3]]
+        return max_tile in corners
+
+    def count_potential_merges(self, board):
+        potential_merges = 0
+        for row in board:
+            stripped = [num for num in row if num != 0]
+            for i in range(len(stripped) - 1):
+                if stripped[i] == stripped[i + 1]:
+                    potential_merges += 1
+        for c in range(4):
+            col = [board[r][c] for r in range(4)]
+            stripped = [num for num in col if num != 0]
+            for i in range(len(stripped) - 1):
+                if stripped[i] == stripped[i + 1]:
+                    potential_merges += 1
+
+        return potential_merges
+
+    def count_empty_tiles(self, board):
+        return sum(cell == 0 for row in board for cell in row)
+
+    # run on terminal nodes
+    def evaluation_function(self, board):
+        corner_feature = 1500 if self.is_max_tile_in_corner(board) else 0
+        potential_merge_feature = self.count_potential_merges(board) * 50
+        empty_tile_feature = self.count_empty_tiles(board) * 100
+
+        return corner_feature + potential_merge_feature + empty_tile_feature
+
+    def expectimax(self, game, depth, is_max_turn):
+        # terminal node
+        if depth == 0 or game.game_over:
+            return self.evaluation_function(game.board)
+
+        # max over all possible moves
+        if is_max_turn:
+            maximum = float('-inf')
+            for move in ['up', 'down', 'left', 'right']:
+                new_game = copy.deepcopy(game)
+                new_game.move(move)
+                if new_game.board != game.board:
+                    score = self.expectimax(new_game, depth - 1, False)
+                    maximum = max(maximum, score)
+            return maximum
+        # expected value
+        else:
+            empty = [(row, column) for row in range(4) for column in range(4) if game.board[row][column] == 0]
+
+            expected_value = 0
+            for r, c in empty:
+                for val, prob in [(2, 0.9), (4, 0.1)]:
+                    new_game = copy.deepcopy(game)
+                    new_game.board[r][c] = val
+                    expected_value += prob * (self.expectimax(new_game, depth - 1, True) / len(empty))
+            return expected_value
+
+    # find best move to make based on expected values
+    def get_best_move(self, game, depth=3):
+        best_score = float('-inf')
+        best_move = None
+        for move in ['up', 'down', 'left', 'right']:
+            new_game = copy.deepcopy(game)
+            new_game.move(move)
+            if new_game.board != game.board:
+                score = self.expectimax(new_game, depth - 1, False)
+                if score > best_score:
+                    best_score = score
+                    best_move = move
+        return best_move
 
 if __name__ == "__main__":
     game = Game2048()
     game.print_board()
 
-    while not game.game_over:
-        move = input("Move (w/a/s/d): ").lower()
-        dir_map = {'w': 'up', 'a': 'left', 's': 'down', 'd': 'right'}
+    expectimax = Expectimax()
 
-        if move in dir_map:
-            game.move(dir_map[move])
+    while not game.game_over:
+        move = expectimax.get_best_move(game)
+        if move:
+            print(f"Best Move: {move}")
+            game.move(move)
             game.print_board()
         else:
-            print("Invalid move")
+            print("Game Over")
+            break
 
     print("Final score:", game.score)
