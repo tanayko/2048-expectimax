@@ -205,7 +205,6 @@ class SimulationRunner:
         return max_tiles
 
     def run_analysis(self, weights):
-        # print("Running analysis...")
         max_tiles = []
         for i in range(self.runs):
             # print(f"Run {i + 1}")
@@ -238,14 +237,14 @@ class SimulationRunner:
         for tile, count in counter.items():
             if tile < 32:
                 continue
-            points = (tile // 32) - 1  # Points for the tile
-            score += points * count  # Add to score
+            points = (tile // 32) - 1
+            score += points * count
         return score
 
     def graph_scores(self, scores):
         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         rankings, sorted_scores_values = zip(*sorted_scores)
-        weight_sets = [str(rank) for rank in rankings]  # Ensure it's a string of the entire tuple
+        weight_sets = [str(rank) for rank in rankings]
 
         plt.figure(figsize=(8, 6))
         plt.barh(range(len(sorted_scores_values)), sorted_scores_values, tick_label=weight_sets, color='skyblue')
