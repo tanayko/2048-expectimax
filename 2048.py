@@ -313,30 +313,30 @@ if __name__ == "__main__":
 
     weight_sets = [
         # Baseline
-        (0, 0, 0, 0),  # Baseline
+        (0, 0, 0, 0),
 
-        # Varying first weight (keeping others 0)
+        # Varying corner weight
         (35, 0, 0, 0),
         (100, 0, 0, 0),
         (250, 0, 0, 0),
         (1200, 0, 0, 0),
 
-        # Varying second weight
+        # Varying merging weight
         (0, 30, 0, 0),
         (0, 100, 0, 0),
         (0, 175, 0, 0),
 
-        # Varying third weight
+        # Varying empty tiles weight
         (0, 0, 50, 0),
         (0, 0, 80, 0),
         (0, 0, 120, 0),
 
-        # Varying fourth weight
+        # Varying full columns/rows weight
         (0, 0, 0, 100),
         (0, 0, 0, 200),
         (0, 0, 0, 400),
 
-        # Sensitivity around best manual set
+        # Varying weights around the best manual set of weights we found
         (0, 100, 80, 200),
         (30, 100, 80, 200),
         (180, 100, 80, 200),
@@ -357,7 +357,7 @@ if __name__ == "__main__":
         (100, 100, 80, 300),
         (100, 100, 80, 1000),
 
-        # Best manually found set
+        # Best manual set of weights we found
         (100, 100, 80, 150),
     ]
 
