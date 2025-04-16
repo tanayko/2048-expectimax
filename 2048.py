@@ -208,10 +208,10 @@ class SimulationRunner:
         return max_tiles
 
     def run_analysis(self, weights):
-        print("Running analysis...")
+        # print("Running analysis...")
         max_tiles = []
         for i in range(self.runs):
-            print(f"Run {i + 1}")
+            # print(f"Run {i + 1}")
             game = Game2048()
             agent = Expectimax(weights)
             while not game.game_over:
