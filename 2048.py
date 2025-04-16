@@ -3,9 +3,6 @@ import copy
 from collections import Counter
 
 import matplotlib.pyplot as plt
-import numpy as np
-from scipy.interpolate import make_interp_spline
-
 
 class Game2048:
     def __init__(self):
