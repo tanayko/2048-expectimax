@@ -1,13 +1,15 @@
 import random
 import copy
+from collections import Counter
 
-#from mpmath.matrices.matrices import rowsep
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import make_interp_spline
+
 
 class Game2048:
     def __init__(self):
         self.board = [[0]*4 for _ in range(4)]
-        self.score = 0
         self.game_over = False
         self.spawn_number_tile()
         self.spawn_number_tile()
@@ -28,7 +30,6 @@ class Game2048:
         for i in range(3):
             if row[i] != 0 and row[i] == row[i+1]:
                 row[i] *= 2
-                self.score += row[i]
                 row[i+1] = 0
         return row
 
@@ -39,17 +40,29 @@ class Game2048:
         self.board = [self.final_merge(row) for row in self.board]
 
     def move_right(self):
-        self.board = [self.final_merge(row[::-1])[::-1] for row in self.board]
+        new_board = []
+
+        # final merge but on a reversed board (regular merge only works on left side)
+        for row in self.board:
+            reverse = row[::-1]
+            final_row = self.final_merge(reverse)
+            new_board.append(final_row[::-1])
+        self.board = new_board
 
     def move_up(self):
-        transposed = list(map(list, zip(*self.board)))
-        merged = [self.final_merge(row) for row in transposed]
-        self.board = [list(row) for row in zip(*merged)]
+        # transpose board (switch rows with columns)
+        transpose = [[self.board[row][column] for row in range(4)] for column in range(4)]
+        merged = [self.final_merge(row) for row in transpose]
+        # tranpose board back
+        self.board = [[merged[c][r] for c in range(4)] for r in range(4)]
 
     def move_down(self):
-        transposed = list(map(list, zip(*self.board)))
-        merged = [self.final_merge(row[::-1])[::-1] for row in transposed]
-        self.board = [list(row) for row in zip(*merged)]
+        # transpose board (switch rows with columns), and flip the board
+        transpose = [[self.board[r][c] for r in range(4)][::-1] for c in range(4)]
+        merged = [self.final_merge(row) for row in transpose]
+        # flip the board back and then transpose it back
+        flipped = [row[::-1] for row in merged]
+        self.board = [[flipped[c][r] for c in range(4)] for r in range(4)]
 
     def move(self, direction):
         old_board = copy.deepcopy(self.board)
@@ -61,8 +74,7 @@ class Game2048:
             self.move_left()
         elif direction == 'right':
             self.move_right()
-        else:
-            return
+
         if self.board != old_board:
             self.spawn_number_tile()
         elif not self.can_move():
@@ -70,14 +82,20 @@ class Game2048:
 
     def can_move(self):
         for row in range(4):
-            for col in range(4):
-                if self.board[row][col] == 0:
+            for column in range(4):
+                if self.board[row][column] == 0:
                     return True
-                if col < 3 and self.board[row][col] == self.board[row][col+1]:
+                if column < 3 and self.board[row][column] == self.board[row][column + 1]:
                     return True
-                if row < 3 and self.board[row][col] == self.board[row+1][col]:
+                if row < 3 and self.board[row][column] == self.board[row + 1][column]:
                     return True
         return False
+
+    def print_board(self):
+        print("\n")
+        for row in self.board:
+            print("".join(f"{num or '-':>5}" for num in row))
+        print("\n")
 
 
 class Expectimax:
@@ -89,32 +107,47 @@ class Expectimax:
         return max_tile in [board[0][0], board[0][3], board[3][0], board[3][3]]
 
     def count_potential_merges(self, board):
-        merges = 0
+        potential_merges = 0
+
         for row in board:
             row = [x for x in row if x != 0]
             for i in range(len(row) - 1):
                 if row[i] == row[i+1]:
-                    merges += 1
-        for col in zip(*board):
-            col = [x for x in col if x != 0]
-            for i in range(len(col) - 1):
-                if col[i] == col[i+1]:
-                    merges += 1
-        return merges
+                    potential_merges += 1
+
+        for column in zip(*board):
+            column = [x for x in column if x != 0]
+            for i in range(len(column) - 1):
+                if column[i] == column[i+1]:
+                    potential_merges += 1
+
+        return potential_merges
 
     def count_empty_tiles(self, board):
         return sum(cell == 0 for row in board for cell in row)
 
+    def non_full_lines(self, board):
+        rows_with_space = sum(1 for row in board if any(cell == 0 for cell in row))
+        cols_with_space = sum(1 for col in zip(*board) if any(cell == 0 for cell in col))
+        return rows_with_space + cols_with_space
+
     def evaluation_function(self, board):
-        w_corner, w_merge, w_empty = self.weights
-        corner_score = w_corner if self.is_max_tile_in_corner(board) else 0
-        merge_score = self.count_potential_merges(board) * w_merge
-        empty_score = self.count_empty_tiles(board) * w_empty
-        return corner_score + merge_score + empty_score
+        w_corner, w_merge, w_empty, w_non_full = self.weights
+
+        score = 0
+        if self.is_max_tile_in_corner(board):
+            score += w_corner
+        score += self.count_potential_merges(board) * w_merge
+        score += self.count_empty_tiles(board) * w_empty
+        score += self.non_full_lines(board) * w_non_full
+
+        return score
 
     def expectimax(self, game, depth, is_max_turn):
         if depth == 0 or game.game_over:
             return self.evaluation_function(game.board)
+
+        # max over all possible moves
         if is_max_turn:
             best = float('-inf')
             for move in ['up', 'down', 'left', 'right']:
@@ -124,67 +157,213 @@ class Expectimax:
                     score = self.expectimax(new_game, depth-1, False)
                     best = max(best, score)
             return best
+        # expected value
         else:
             empty = [(r, c) for r in range(4) for c in range(4) if game.board[r][c] == 0]
             if not empty:
                 return self.evaluation_function(game.board)
-            expect = 0
+            expected_value = 0
             for r, c in empty:
                 for val, prob in [(2, 0.9), (4, 0.1)]:
                     new_game = copy.deepcopy(game)
                     new_game.board[r][c] = val
-                    expect += prob * self.expectimax(new_game, depth-1, True) / len(empty)
-            return expect
+                    expected_value += prob * self.expectimax(new_game, depth-1, True) / len(empty)
+            return expected_value
 
+    # find best move to make based on expected values
     def get_best_move(self, game, depth=3):
         best_move = None
-        best_score = float('-inf')
+        best_value = float('-inf')
+
         for move in ['up', 'down', 'left', 'right']:
             new_game = copy.deepcopy(game)
             new_game.move(move)
             if new_game.board != game.board:
-                score = self.expectimax(new_game, depth-1, False)
-                if score > best_score:
-                    best_score = score
+                value = self.expectimax(new_game, depth - 1, False)
+                if value > best_value:
+                    best_value = value
                     best_move = move
+
         return best_move
 
 
-def run_simulation(weights, runs=10, depth=3):
-    scores = []
-    max_tiles = []
-    for _ in range(runs):
-        game = Game2048()
-        ai = Expectimax(weights)
-        while not game.game_over:
-            move = ai.get_best_move(game, depth)
-            if move:
-                game.move(move)
-            else:
-                break
-        scores.append(game.score)
-        max_tiles.append(max(max(row) for row in game.board))
-    return scores, max_tiles
+class SimulationRunner:
+    def __init__(self, weight_sets, runs=100, depth=3):
+        self.weight_sets = weight_sets
+        self.runs = runs
+        self.depth = depth
 
+    def run_simulation(self, weights):
+        max_tiles = []
+        for _ in range(self.runs):
+            game = Game2048()
+            expectimax = Expectimax(weights)
+            while not game.game_over:
+                move = expectimax.get_best_move(game, self.depth)
+                if move:
+                    game.move(move)
+                else:
+                    break
+            max_tiles.append(max(max(row) for row in game.board))
+        return max_tiles
+
+    def run_analysis(self, weights):
+        print("Running analysis...")
+        max_tiles = []
+        for i in range(self.runs):
+            print(f"Run {i + 1}")
+            game = Game2048()
+            agent = Expectimax(weights)
+            while not game.game_over:
+                move = agent.get_best_move(game, self.depth)
+                if move:
+                    game.move(move)
+                else:
+                    break
+            max_tiles.append(max(max(row) for row in game.board))
+        tile_distribution = Counter(max_tiles)
+        return tile_distribution
+
+    def plot_results(self, distribution, weights):
+        labels = list(distribution.keys())
+        values = list(distribution.values())
+
+        plt.bar(labels, values, color='skyblue', label='Tile Frequencies')
+        plt.title(f"Distribution of Max Tiles Achieved\nWeights: {weights}")
+        plt.xlabel('Max Tile Achieved')
+        plt.ylabel('Frequency')
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+    def score_tiles(self, counter):
+        score = 0
+        for tile, count in counter.items():
+            if tile < 32:
+                continue
+            points = (tile // 32) - 1  # Points for the tile
+            score += points * count  # Add to score
+        return score
+
+    def graph_scores(self, scores):
+        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        rankings, sorted_scores_values = zip(*sorted_scores)
+        weight_sets = [str(rank) for rank in rankings]  # Ensure it's a string of the entire tuple
+
+        plt.figure(figsize=(8, 6))
+        plt.barh(range(len(sorted_scores_values)), sorted_scores_values, tick_label=weight_sets, color='skyblue')
+        plt.xlabel('Score')
+        plt.ylabel('Weight Set')
+        plt.title('Ranking of Weight Sets based on Scores')
+        plt.tight_layout()
+        plt.show()
+
+    def run(self):
+        scores = {}
+        for weights in self.weight_sets:
+            print(f"Running analysis for weights: {weights}")
+            distribution = self.run_analysis(weights)
+            print(distribution)
+            scores[tuple(weights)] = self.score_tiles(distribution)
+
+            self.plot_results(distribution, weights)
+
+        self.graph_scores(scores)
 
 if __name__ == "__main__":
+    # game = Game2048()
+    # game.print_board()
+    #
+    # expectimax = Expectimax([1500, 30, 100])
+    #
+    # while not game.game_over:
+    #     move = expectimax.get_best_move(game)
+    #     if move:
+    #         print(f"Best Move: {move}")
+    #         game.move(move)
+    #         game.print_board()
+    #     else:
+    #         print("Game Over")
+    #         break
+    #
+
+    # weight_sets = [
+    #     (1500, 30, 100),
+    #     (1500, 50, 100),
+    #     (1000, 30, 120),
+    #     (2000, 80, 80),
+    #     (0, 100, 150)
+    # ]
+    #
+    # print("Running simulations...")
+    # for weights in weight_sets:
+    #     print(f"Simulating weights: {weights}")
+    #     scores, _ = run_simulation(weights, runs=5, depth=2)
+    #     plt.plot(scores, label=f"Weights: {weights}")
+    #
+    # print("Done. Plotting...")
+    # plt.title("2048 AI Scores by Weight Combination")
+    # plt.xlabel("Simulation #")
+    # plt.ylabel("Score")
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.show(block=True)
+
+    # Run the analysis now
+    # weights = (2000, 100, 80, 200)
+    # weights = (100, 100, 80, 200)
+    # weights = (0, 0, 0, 0)
+    # print(run_analysis(weights, 10))
+
     weight_sets = [
-        (1500, 50, 100),
-        (1000, 30, 120),
-        (2000, 80, 80),
-        (0, 100, 150)
+        # Baseline
+        (0, 0, 0, 0),  # Baseline
+
+        # Varying first weight (keeping others 0)
+        (35, 0, 0, 0),
+        (100, 0, 0, 0),
+        (250, 0, 0, 0),
+        (1200, 0, 0, 0),
+
+        # Varying second weight
+        (0, 30, 0, 0),
+        (0, 100, 0, 0),
+        (0, 175, 0, 0),
+
+        # Varying third weight
+        (0, 0, 50, 0),
+        (0, 0, 80, 0),
+        (0, 0, 120, 0),
+
+        # Varying fourth weight
+        (0, 0, 0, 100),
+        (0, 0, 0, 200),
+        (0, 0, 0, 400),
+
+        # Sensitivity around best manual set
+        (0, 100, 80, 200),
+        (30, 100, 80, 200),
+        (180, 100, 80, 200),
+        (1000, 100, 80, 200),
+
+        (100, 0, 80, 200),
+        (100, 30, 80, 200),
+        (100, 180, 80, 200),
+        (100, 1000, 80, 200),
+
+        (100, 100, 0, 200),
+        (100, 100, 20, 200),
+        (100, 100, 160, 200),
+        (100, 100, 1000, 200),
+
+        (100, 100, 80, 0),
+        (100, 100, 80, 100),
+        (100, 100, 80, 300),
+        (100, 100, 80, 1000),
+
+        # Best manually found set
+        (100, 100, 80, 150),
     ]
 
-    print("Running simulations...")
-    for weights in weight_sets:
-        print(f"Simulating weights: {weights}")
-        scores, _ = run_simulation(weights, runs=5, depth=2)  
-        plt.plot(scores, label=f"Weights: {weights}")
-
-    print("Done. Plotting...")
-    plt.title("2048 AI Scores by Weight Combination")
-    plt.xlabel("Simulation #")
-    plt.ylabel("Score")
-    plt.legend()
-    plt.tight_layout()
-    plt.show(block=True)
+    runner = SimulationRunner(weight_sets, runs=25, depth=3)
+    runner.run()
