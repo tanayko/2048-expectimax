@@ -184,7 +184,7 @@ class Expectimax:
         return best_move
 
 
-class SimulationRunner:
+class Runner:
     def __init__(self, weight_sets, runs=100, depth=3):
         self.weight_sets = weight_sets
         self.runs = runs
@@ -361,5 +361,5 @@ if __name__ == "__main__":
         (100, 100, 80, 150),
     ]
 
-    runner = SimulationRunner(weight_sets, runs=25, depth=3)
+    runner = Runner(weight_sets, runs=25, depth=3)
     runner.run()
