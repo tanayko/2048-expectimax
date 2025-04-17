@@ -97,7 +97,7 @@ class Game2048:
 
 class Expectimax:
     def __init__(self, weights):
-        self.weights = weights  # (corner, merge, empty)
+        self.weights = weights  # (corner, merge, empty, full columns/rows)
 
     def is_max_tile_in_corner(self, board):
         max_tile = max(max(row) for row in board)
