@@ -192,7 +192,7 @@ class Runner:
 
     def run_simulation(self, weights):
         max_tiles = []
-        for _ in range(self.runs):
+        for i in range(self.runs):
             game = Game2048()
             expectimax = Expectimax(weights)
             while not game.game_over:
