@@ -221,15 +221,15 @@ class Runner:
         return tile_distribution
 
     def plot_results(self, distribution, weights):
-        labels = list(distribution.keys())
-        values = list(distribution.values())
+        tiles = list(distribution.keys())
+        frequencies = list(distribution.values())
 
-        plt.bar(labels, values, color='skyblue', label='Tile Frequencies')
+        plt.bar(tiles, frequencies, width=50, color='skyblue', label='Tile Frequencies')
+        plt.xlabel("Max Tile Achieved")
+        plt.ylabel("Frequency")
         plt.title(f"Distribution of Max Tiles Achieved\nWeights: {weights}")
-        plt.xlabel('Max Tile Achieved')
-        plt.ylabel('Frequency')
         plt.legend()
-        plt.tight_layout()
+        plt.grid(True)
         plt.show()
 
     def score_tiles(self, counter):
@@ -247,12 +247,22 @@ class Runner:
         weight_sets = [str(rank) for rank in rankings]
 
         plt.figure(figsize=(8, 6))
-        plt.barh(range(len(sorted_scores_values)), sorted_scores_values, tick_label=weight_sets, color='skyblue')
-        plt.xlabel('Score')
-        plt.ylabel('Weight Set')
-        plt.title('Ranking of Weight Sets based on Scores')
+        plt.barh(range(len(sorted_scores_values))[::-1], sorted_scores_values[::-1],
+                 tick_label=weight_sets[::-1], color='skyblue')
+        plt.xlabel("Score")
+        plt.ylabel("Weight Set")
+        plt.title("Ranking of Weight Sets based on Scores")
+        plt.gca().invert_yaxis()  # This line flips the y-axis so the highest scores are on top
         plt.tight_layout()
         plt.show()
+
+        # plt.barh(range(len(sorted_scores_values))[::-1], sorted_scores_values[::-1],
+        #          tick_label=weight_sets[::-1], color='skyblue')  # Reverse both scores and labels
+        # plt.xlabel('Score')
+        # plt.ylabel('Weight Set')
+        # plt.title('Ranking of Weight Sets based on Scores')
+        # plt.tight_layout()
+        # plt.show()
 
     def run(self):
         scores = {}
