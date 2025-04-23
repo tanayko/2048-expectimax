@@ -1,7 +1,6 @@
 import random
 import copy
 from collections import Counter
-
 import matplotlib.pyplot as plt
 
 class Game2048:
@@ -207,7 +206,6 @@ class Runner:
     def run_analysis(self, weights):
         max_tiles = []
         for i in range(self.runs):
-            # print(f"Run {i + 1}")
             game = Game2048()
             agent = Expectimax(weights)
             while not game.game_over:
@@ -252,17 +250,9 @@ class Runner:
         plt.xlabel("Score")
         plt.ylabel("Weight Set")
         plt.title("Ranking of Weight Sets based on Scores")
-        plt.gca().invert_yaxis()  # This line flips the y-axis so the highest scores are on top
+        plt.gca().invert_yaxis()
         plt.tight_layout()
         plt.show()
-
-        # plt.barh(range(len(sorted_scores_values))[::-1], sorted_scores_values[::-1],
-        #          tick_label=weight_sets[::-1], color='skyblue')  # Reverse both scores and labels
-        # plt.xlabel('Score')
-        # plt.ylabel('Weight Set')
-        # plt.title('Ranking of Weight Sets based on Scores')
-        # plt.tight_layout()
-        # plt.show()
 
     def run(self):
         scores = {}
@@ -277,50 +267,6 @@ class Runner:
         self.graph_scores(scores)
 
 if __name__ == "__main__":
-    # game = Game2048()
-    # game.print_board()
-    #
-    # expectimax = Expectimax([1500, 30, 100])
-    #
-    # while not game.game_over:
-    #     move = expectimax.get_best_move(game)
-    #     if move:
-    #         print(f"Best Move: {move}")
-    #         game.move(move)
-    #         game.print_board()
-    #     else:
-    #         print("Game Over")
-    #         break
-    #
-
-    # weight_sets = [
-    #     (1500, 30, 100),
-    #     (1500, 50, 100),
-    #     (1000, 30, 120),
-    #     (2000, 80, 80),
-    #     (0, 100, 150)
-    # ]
-    #
-    # print("Running simulations...")
-    # for weights in weight_sets:
-    #     print(f"Simulating weights: {weights}")
-    #     scores, _ = run_simulation(weights, runs=5, depth=2)
-    #     plt.plot(scores, label=f"Weights: {weights}")
-    #
-    # print("Done. Plotting...")
-    # plt.title("2048 AI Scores by Weight Combination")
-    # plt.xlabel("Simulation #")
-    # plt.ylabel("Score")
-    # plt.legend()
-    # plt.tight_layout()
-    # plt.show(block=True)
-
-    # Run the analysis now
-    # weights = (2000, 100, 80, 200)
-    # weights = (100, 100, 80, 200)
-    # weights = (0, 0, 0, 0)
-    # print(run_analysis(weights, 10))
-
     weight_sets = [
         # Baseline
         (0, 0, 0, 0),
